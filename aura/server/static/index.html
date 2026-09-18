@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AURA — Autonomous Agentic Black-Box UI/UX & A11y Platform</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Cytoscape.js CDN for Journey Graph -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+  <!-- Chart.js CDN for Scorecards Trend -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['JetBrains Mono', 'SF Mono', 'Menlo', 'monospace']
+          },
+          colors: {
+            aura: {
+              950: '#06070a',
+              900: '#0b0d14',
+              850: '#10131d',
+              800: '#161a29',
+              700: '#22283e',
+              600: '#323b59',
+              accent: '#4f46e5',
+              neon: '#06b6d4',
+              glow: '#3b82f6'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #06070a;
+      color: #e2e8f0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-image: radial-gradient(rgba(59, 130, 246, 0.04) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+    .glass-panel {
+      background: rgba(16, 19, 29, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .pulse-glow {
+      animation: pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 1; filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.6)); }
+      50% { opacity: .7; filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.2)); }
+    }
+    .ripple {
+      position: absolute; width: 24px; height: 24px; border-radius: 50%;
+      background: rgba(239, 68, 68, 0.65); transform: translate(-50%, -50%);
+      pointer-events: none; animation: rippleAnim 0.6s ease-out;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.8);
+    }
+    @keyframes rippleAnim {
+      to { width: 75px; height: 75px; opacity: 0; }
+    }
+    #cy-journey { width: 100%; height: 100%; min-height: 480px; background-color: #0b0d14; border-radius: 0.75rem; }
+    
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0b0d14; }
+    ::-webkit-scrollbar-thumb { background: #22283e; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
+
+    /* Split-screen comparison slider */
+    .split-container { position: relative; width: 100%; height: 420px; overflow: hidden; background: #000; border-radius: 0.75rem; }
+    .split-img-before, .split-img-after { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+    .split-img-after { width: 50%; border-right: 2px solid #3b82f6; overflow: hidden; }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-sm selection:bg-blue-600 selection:text-white">
+
+  <!-- TOP APP BAR -->
+  <header class="glass-panel border-b border-white/10 px-6 py-3 flex items-center justify-between flex-shrink-0 z-20">
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2.5">
+        <div class="relative flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-lg shadow-blue-500/25">
+          <span class="text-white font-black text-base tracking-tighter">A</span>
+        </div>
+        <div class="flex flex-col">
+          <div class="flex items-center space-x-2">
+            <span class="text-lg font-black tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">AURA</span>
+            <span class="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">VLM Agent</span>
+          </div>
+          <span class="text-[11px] text-zinc-400 font-medium">Autonomous Black-Box UI/UX & A11y Engine</span>
+        </div>
+      </div>
+      <div class="hidden md:flex items-center space-x-2 pl-4 border-l border-white/10">
+        <div id="status-pill" class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-zinc-900/90 border border-zinc-700/60 text-[11px] font-mono">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="status-text" class="text-emerald-400 font-semibold">ENGINE READY</span>
+        </div>
+        <span class="text-[11px] text-zinc-500">• Zero Selectors • Set-of-Mark Vision • WCAG 2.1 AA</span>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="flex items-center space-x-2.5">
+      <!-- AI Engine & Model Settings -->
+      <button onclick="openAiSettingsModal()" class="px-3.5 py-1.5 rounded-lg glass-panel hover:bg-white/5 text-zinc-200 text-xs font-semibold flex items-center space-x-2 transition hover:border-indigo-500/50 shadow-md">
+        <span class="text-indigo-400">🧠</span>
+        <span id="header-engine-name">AI Engine</span>
+        <span id="header-engine-badge" class="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono text-[10px]">Zero-Key</span>
+      </button>
+
+      <button onclick="toggleWishlistDrawer()" class="relative px-3.5 py-1.5 rounded-lg glass-panel hover:bg-white/5 text-zinc-200 text-xs font-semibold flex items-center space-x-2 transition hover:border-amber-500/50">
+        <span class="text-amber-400">⭐</span>
+        <span>Wishlist</span>
+        <span id="wishlist-badge" class="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold text-[10px]">0</span>
+      </button>
+
+      <button onclick="openBatchFixModal()" class="px-3.5 py-1.5 rounded-lg bg-indigo-600/90 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 border border-indigo-400/30 transition flex items-center space-x-1.5">
+        <span>⚡</span>
+        <span>Batch Fix (Resolve All)</span>
+      </button>
+
+      <button onclick="toggleRegressionModal()" class="px-3.5 py-1.5 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/25 border border-emerald-400/30 transition flex items-center space-x-1.5">
+        <span>📊</span>
+        <span>Regression Diff</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE -->
+  <div class="flex-1 flex flex-col p-4 space-y-3 min-h-0 overflow-hidden">
+
+    <!-- COMMAND / INTENT BAR (No sample website hardcoding - Universal URL & Goal) -->
+    <div class="glass-panel rounded-xl p-3 shadow-xl border border-white/10 flex-shrink-0">
+      <div class="grid grid-cols-12 gap-3 items-center">
+        
+        <!-- TARGET URL INPUT -->
+        <div class="col-span-4 flex items-center bg-black/40 border border-white/10 rounded-lg px-3 py-2 focus-within:border-blue-500/80 transition shadow-inner">
+          <span class="text-zinc-500 mr-2 text-xs">🌐</span>
+          <span class="text-[11px] font-mono text-blue-400 font-bold mr-2">URL:</span>
+          <input id="input-target" type="text" value="" 
+                 placeholder="e.g. https://www.youtube.com, https://www.google.com..." 
+                 class="w-full bg-transparent text-zinc-100 placeholder-zinc-500 focus:outline-none text-xs font-mono" />
+        </div>
+
+        <!-- GOAL / NATURAL LANGUAGE INTENT -->
+        <div class="col-span-5 flex items-center bg-black/40 border border-white/10 rounded-lg px-3 py-2 focus-within:border-blue-500/80 transition shadow-inner">
+          <span class="text-zinc-500 mr-2 text-xs">🎯</span>
+          <span class="text-[11px] font-mono text-emerald-400 font-bold mr-2">GOAL:</span>
+          <input id="input-goal" type="text" value="" 
+                 placeholder="Describe what the agent should accomplish (e.g. Search for lofi hip hop and play the first video)..." 
+                 class="w-full bg-transparent text-zinc-100 placeholder-zinc-500 focus:outline-none text-xs" />
+        </div>
+
+        <!-- PLATFORM SELECTOR -->
+        <div class="col-span-2 flex justify-center">
+          <div class="flex rounded-lg bg-black/50 p-1 border border-white/10 text-xs w-full justify-between">
+            <button class="platform-btn px-2.5 py-1 rounded-md bg-blue-600 text-white font-medium text-[11px] transition shadow" data-platform="desktop">Desktop</button>
+            <button class="platform-btn px-2.5 py-1 rounded-md text-zinc-400 hover:text-white text-[11px] transition" data-platform="mobile_web">Mobile</button>
+            <button class="platform-btn px-2.5 py-1 rounded-md text-zinc-400 hover:text-white text-[11px] transition" data-platform="android">Android</button>
+            <button class="px-2 py-1 rounded-md text-zinc-600 cursor-not-allowed line-through text-[11px]" disabled title="iOS is declared interface-only in submission">iOS</button>
+          </div>
+        </div>
+
+        <!-- EXECUTION BUTTON -->
+        <div class="col-span-1">
+          <button id="btn-run" onclick="startNewRun()" class="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition flex items-center justify-center space-x-1.5">
+            <span id="btn-run-icon">▶</span>
+            <span id="btn-run-text">Launch</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MAIN TWO-COLUMN SPLIT: BIG PREVIEW (60%) + BIG REPORT TERMINAL (40%) -->
+    <div class="flex-1 grid grid-cols-12 gap-4 min-h-0">
+
+      <!-- LEFT COLUMN: BIG PREVIEW SCREEN & LIVE CONTROL (7 COLS / ~60% WIDTH) -->
+      <div class="col-span-7 flex flex-col space-y-3 min-h-0">
+        
+        <!-- CINEMA VIEWPORT DISPLAY -->
+        <div class="glass-panel rounded-2xl p-3.5 flex flex-col flex-1 min-h-0 shadow-2xl border border-white/10 relative overflow-hidden">
+          
+          <!-- Viewport Bar -->
+          <div class="flex items-center justify-between pb-2.5 border-b border-white/10 flex-shrink-0">
+            <div class="flex items-center space-x-3">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="font-bold text-xs tracking-wide text-zinc-200">LIVE AGENT VIEWPORT</span>
+              </div>
+              <span id="viewport-resolution-tag" class="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-400 border border-zinc-700">1280 × 800</span>
+              <span id="active-step-tag" class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-950/80 text-blue-300 border border-blue-800">Step 0</span>
+            </div>
+
+            <div class="flex items-center space-x-3">
+              <span id="live-fps" class="text-[11px] text-zinc-400 font-mono">0.0 fps</span>
+              <button id="btn-pause-control" onclick="togglePauseControl()" class="px-3 py-1 rounded-lg bg-amber-600/90 hover:bg-amber-500 text-white font-bold text-xs shadow-md shadow-amber-600/20 border border-amber-400/30 transition flex items-center space-x-1">
+                <span>⏸</span>
+                <span>Pause & Take Control</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Cinema Live Canvas -->
+          <div id="live-container" class="relative flex-1 bg-black rounded-xl overflow-hidden mt-3 flex items-center justify-center cursor-crosshair border border-zinc-900 shadow-inner group">
+            <img id="live-frame" src="" alt="Live feed ready. Enter URL & Goal, then click Launch." 
+                 class="max-w-full max-h-full object-contain select-none transition-all duration-150" />
+            
+            <!-- Target Box & Tap Animations -->
+            <div id="active-pulse-badge" class="absolute border-2 border-red-500 bg-red-500/25 pulse-glow pointer-events-none hidden"></div>
+            
+            <!-- Manual Intervention Banner -->
+            <div id="control-overlay-banner" class="absolute top-3 left-3 bg-amber-950/95 border border-amber-500 text-amber-100 text-xs px-3.5 py-2 rounded-lg shadow-2xl backdrop-blur-md hidden flex items-center space-x-2">
+              <span class="text-base">🖐</span>
+              <div>
+                <div class="font-bold">Manual Intervention Active</div>
+                <div class="text-[10px] text-amber-300/90">Click frame to tap coordinates • Type on keyboard to enter keys</div>
+              </div>
+            </div>
+
+            <!-- Empty State Placeholder -->
+            <div id="live-empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-zinc-600 space-y-3 pointer-events-none">
+              <div class="w-14 h-14 rounded-2xl bg-zinc-900/80 border border-zinc-800 flex items-center justify-center text-2xl text-zinc-500 shadow-inner">
+                👁️
+              </div>
+              <div class="text-center">
+                <div class="text-xs font-semibold text-zinc-400">Autonomous Viewport Ready</div>
+                <div class="text-[11px] text-zinc-600 mt-0.5">Enter a target URL above to begin real-time black-box perception.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Telemetry Bar -->
+          <div class="grid grid-cols-4 gap-3 mt-3 pt-2.5 border-t border-white/10 flex-shrink-0">
+            <div class="bg-black/40 p-2 rounded-lg border border-white/5 flex items-center justify-between">
+              <span class="text-[10px] font-mono text-zinc-400 uppercase">Friction Score</span>
+              <span id="score-friction" class="text-sm font-black text-blue-400 font-mono">100/100</span>
+            </div>
+            <div class="bg-black/40 p-2 rounded-lg border border-white/5 flex items-center justify-between">
+              <span class="text-[10px] font-mono text-zinc-400 uppercase">WCAG A11y</span>
+              <span id="score-a11y" class="text-sm font-black text-emerald-400 font-mono">100/100</span>
+            </div>
+            <div class="bg-black/40 p-2 rounded-lg border border-white/5 flex items-center justify-between">
+              <span class="text-[10px] font-mono text-zinc-400 uppercase">Execution Time</span>
+              <span id="score-time" class="text-sm font-bold text-zinc-200 font-mono">0.0s</span>
+            </div>
+            <div class="bg-black/40 p-2 rounded-lg border border-white/5 flex items-center justify-between">
+              <span class="text-[10px] font-mono text-zinc-400 uppercase">Token Cost</span>
+              <span id="score-cost" class="text-sm font-bold text-zinc-200 font-mono">$0.0000</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: BIG REPORT TERMINAL & INTELLIGENCE STATION (5 COLS / ~40% WIDTH) -->
+      <div class="col-span-5 flex flex-col min-h-0">
+        
+        <div class="glass-panel rounded-2xl p-4 flex flex-col flex-1 min-h-0 shadow-2xl border border-white/10">
+          
+          <!-- Station Tab Navigation -->
+          <div class="flex items-center justify-between pb-3 border-b border-white/10 flex-shrink-0">
+            <div class="flex items-center space-x-1.5 bg-black/40 p-1 rounded-xl border border-white/5">
+              <button onclick="switchStationTab('terminal')" id="tab-station-terminal" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold text-xs shadow transition flex items-center space-x-1.5">
+                <span>&gt;_</span>
+                <span>Agent Terminal</span>
+              </button>
+              <button onclick="switchStationTab('findings')" id="tab-station-findings" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white font-medium text-xs transition flex items-center space-x-1.5">
+                <span>⚠</span>
+                <span>Audit Findings</span>
+                <span id="findings-count-badge" class="ml-1 px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300 font-mono text-[10px]">0</span>
+              </button>
+              <button onclick="switchStationTab('graph')" id="tab-station-graph" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white font-medium text-xs transition flex items-center space-x-1.5">
+                <span>🗺</span>
+                <span>Journey Graph</span>
+              </button>
+              <button onclick="switchStationTab('analytics')" id="tab-station-analytics" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white font-medium text-xs transition flex items-center space-x-1.5">
+                <span>📈</span>
+                <span>Trends</span>
+              </button>
+            </div>
+
+            <!-- Clear Console / Lens selector -->
+            <div id="station-extra-controls" class="flex items-center space-x-2">
+              <span id="rail-confidence-badge" class="text-[11px] font-mono text-blue-400 font-bold bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800">Confidence: 0%</span>
+            </div>
+          </div>
+
+          <!-- TAB 1: THE BIG DEVELOPER TERMINAL CONSOLE -->
+          <div id="station-content-terminal" class="flex-1 flex flex-col min-h-0 mt-3 space-y-3">
+            
+            <!-- Real-Time Thought Rail -->
+            <div class="bg-black/50 border border-white/10 rounded-xl p-3 flex flex-col space-y-2 flex-shrink-0 shadow-inner">
+              <div class="flex items-center justify-between text-xs">
+                <div class="flex items-center space-x-2">
+                  <span class="text-blue-400 font-mono font-bold">[REASONING]</span>
+                  <span id="rail-action-text" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono font-bold text-[10px]">READY</span>
+                </div>
+                <div class="flex items-center space-x-2 text-[11px] font-mono text-zinc-400">
+                  <span>Progress:</span>
+                  <span id="rail-progress-text" class="text-blue-400 font-bold">0%</span>
+                </div>
+              </div>
+              <div class="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden">
+                <div id="rail-progress-bar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+              </div>
+              <p id="rail-thought-text" class="text-xs font-mono text-zinc-300 leading-relaxed max-h-16 overflow-y-auto">
+                System initialized. Enter target URL & goal to launch autonomous black-box testing agent.
+              </p>
+            </div>
+
+            <!-- Authentic Execution Terminal Logs -->
+            <div class="flex-1 bg-[#090b10] border border-white/10 rounded-xl p-3 flex flex-col min-h-0 font-mono text-xs shadow-inner relative">
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/5 text-[10px] text-zinc-500 uppercase tracking-wider flex-shrink-0">
+                <span>Autonomous Execution Stream</span>
+                <span>PAGER=cat • BlackBox Mode</span>
+              </div>
+              <div id="terminal-log-stream" class="flex-1 overflow-y-auto space-y-1 pr-1 text-[11px] leading-relaxed select-text">
+                <div class="text-zinc-500">[SYSTEM] AURA framework initialized with black-box driver interface.</div>
+                <div class="text-zinc-500">[SYSTEM] Zero human selectors allowed in agent decision path.</div>
+                <div class="text-zinc-500">[SYSTEM] Awaiting target session command...</div>
+              </div>
+            </div>
+
+            <!-- Step Trajectory History Row -->
+            <div class="h-28 bg-black/40 border border-white/10 rounded-xl p-2.5 flex flex-col flex-shrink-0">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[10px] font-mono uppercase text-zinc-400 font-bold">Step Trajectory History</span>
+                <span id="step-count-badge" class="text-[10px] font-mono text-zinc-500">0 steps recorded</span>
+              </div>
+              <div id="step-trace-list" class="flex-1 overflow-y-auto space-y-1 pr-1">
+                <div class="text-zinc-600 text-xs italic text-center py-2">No steps taken yet.</div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- TAB 2: AUDIT FINDINGS FEED -->
+          <div id="station-content-findings" class="flex-1 flex flex-col min-h-0 mt-3 space-y-3 hidden">
+            <!-- Persona Lenses Switcher -->
+            <div class="flex items-center justify-between bg-black/40 p-2 rounded-xl border border-white/10 flex-shrink-0">
+              <span class="text-xs font-semibold text-zinc-300">Persona Lens:</span>
+              <div class="flex items-center space-x-1">
+                <button onclick="setLens('all')" class="lens-btn px-2.5 py-1 rounded-lg text-[11px] bg-blue-600 text-white font-medium" data-lens="all">All</button>
+                <button onclick="setLens('deuteranopia')" class="lens-btn px-2.5 py-1 rounded-lg text-[11px] bg-zinc-800 text-zinc-400 hover:text-white" data-lens="deuteranopia">Deuteranopia</button>
+                <button onclick="setLens('dyslexia')" class="lens-btn px-2.5 py-1 rounded-lg text-[11px] bg-zinc-800 text-zinc-400 hover:text-white" data-lens="dyslexia">Dyslexia</button>
+                <button onclick="setLens('motor')" class="lens-btn px-2.5 py-1 rounded-lg text-[11px] bg-zinc-800 text-zinc-400 hover:text-white" data-lens="motor">Motor</button>
+              </div>
+            </div>
+
+            <!-- Scrollable Findings Cards -->
+            <div id="findings-list" class="flex-1 overflow-y-auto space-y-2.5 pr-1">
+              <div class="text-xs text-zinc-500 italic p-6 text-center">No findings detected yet.</div>
+            </div>
+          </div>
+
+          <!-- TAB 3: JOURNEY GRAPH (CYTOSCAPE) -->
+          <div id="station-content-graph" class="flex-1 flex flex-col min-h-0 mt-3 hidden">
+            <div class="flex items-center justify-between pb-2 text-xs text-zinc-400 flex-shrink-0">
+              <div class="flex items-center space-x-3">
+                <span class="inline-flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-blue-500 mr-1.5"></span>Primary Path</span>
+                <span class="inline-flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-purple-500 mr-1.5"></span>Alternate Path</span>
+                <span class="inline-flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-red-500 mr-1.5"></span>Dead End</span>
+              </div>
+              <span id="graph-metrics-tag" class="text-[11px] font-mono text-zinc-400">Path ratio: 1.0</span>
+            </div>
+            <div class="flex-1 relative rounded-xl overflow-hidden border border-white/10 min-h-0">
+              <div id="cy-journey"></div>
+            </div>
+          </div>
+
+          <!-- TAB 4: ANALYTICS -->
+          <div id="station-content-analytics" class="flex-1 flex flex-col min-h-0 mt-3 space-y-3 hidden">
+            <div class="text-xs font-semibold text-zinc-300 pb-1 border-b border-white/10">Historical Metric Trends</div>
+            <div class="flex-1 bg-black/40 rounded-xl p-3 border border-white/5 flex flex-col justify-center">
+              <canvas id="scorecardChart" class="max-h-64"></canvas>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- WISHLIST DRAWER -->
+  <div id="wishlist-drawer" class="fixed inset-y-0 right-0 w-96 bg-zinc-950/95 border-l border-white/10 shadow-2xl transform translate-x-full transition-transform duration-300 z-50 flex flex-col backdrop-blur-2xl">
+    <div class="p-4 border-b border-white/10 flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <span class="text-amber-400 font-bold text-base">⭐ Saved Wishlist</span>
+        <span id="drawer-count-badge" class="px-2 py-0.5 bg-zinc-800 text-xs rounded-full text-zinc-300 font-mono">0 items</span>
+      </div>
+      <button onclick="toggleWishlistDrawer()" class="text-zinc-400 hover:text-white text-lg font-bold">✕</button>
+    </div>
+    <div id="wishlist-drawer-content" class="flex-1 overflow-y-auto p-4 space-y-3">
+      <div class="text-xs text-zinc-500 italic text-center p-4">No bookmarked findings yet.</div>
+    </div>
+    <div class="p-4 border-t border-white/10">
+      <button onclick="openBatchFixModal()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition shadow-lg shadow-indigo-600/30">
+        ⚡ Resolve Wishlist Items
+      </button>
+    </div>
+  </div>
+
+  <!-- BATCH FIX MODAL -->
+  <div id="batch-fix-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-6 z-50 hidden backdrop-blur-md">
+    <div class="glass-panel rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl border border-white/15">
+      <div class="p-4 border-b border-white/10 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="text-indigo-400 font-bold text-base">⚡ Batch Remediation & Root-Cause Clustering</span>
+          <span class="text-xs text-zinc-400">(Unified Patch Set)</span>
+        </div>
+        <button onclick="closeBatchFixModal()" class="text-zinc-400 hover:text-white font-bold text-lg">✕</button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-6 space-y-4">
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">Clustered Root Causes</h4>
+          <div id="root-causes-container" class="space-y-2"></div>
+        </div>
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">Generated Patch Bundle Preview</h4>
+          <div class="flex space-x-2 border-b border-white/10 pb-2">
+            <button onclick="switchBundleTab('css')" id="tab-btn-css" class="px-3 py-1 rounded bg-blue-600 text-white text-xs font-medium">fixes.css</button>
+            <button onclick="switchBundleTab('aria')" id="tab-btn-aria" class="px-3 py-1 rounded bg-zinc-800 text-zinc-400 text-xs font-medium">aria-patches.md</button>
+            <button onclick="switchBundleTab('remediation')" id="tab-btn-remediation" class="px-3 py-1 rounded bg-zinc-800 text-zinc-400 text-xs font-medium">remediation.md</button>
+          </div>
+          <pre id="bundle-preview-box" class="mt-2 p-3.5 bg-black/60 border border-white/10 rounded-xl text-xs font-mono text-zinc-300 overflow-x-auto max-h-52 select-text"></pre>
+        </div>
+      </div>
+      <div class="p-4 border-t border-white/10 flex items-center justify-between">
+        <span class="text-xs text-zinc-400">Review and select patches before exporting bundle.</span>
+        <div class="flex space-x-3">
+          <button onclick="closeBatchFixModal()" class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold">Cancel</button>
+          <a href="/api/remediation/download" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 flex items-center space-x-1.5">
+            <span>📦 Download Fix Bundle (ZIP)</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGRESSION DIFF MODAL -->
+  <div id="regression-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-6 z-50 hidden backdrop-blur-md">
+    <div class="glass-panel rounded-2xl w-full max-w-5xl max-h-[88vh] flex flex-col shadow-2xl border border-white/15">
+      <div class="p-4 border-b border-white/10 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="text-emerald-400 font-bold text-base">📊 Regression Analysis: Version A vs Version B</span>
+        </div>
+        <button onclick="toggleRegressionModal()" class="text-zinc-400 hover:text-white font-bold text-lg">✕</button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        
+        <div class="grid grid-cols-3 gap-4">
+          <div class="bg-black/40 p-3 rounded-xl border border-white/10">
+            <span class="text-xs text-zinc-400">Baseline (Version A)</span>
+            <select id="diff-select-a" class="mt-1 w-full bg-zinc-900 text-zinc-200 text-xs p-2 rounded-lg border border-white/10"></select>
+          </div>
+          <div class="bg-black/40 p-3 rounded-xl border border-white/10">
+            <span class="text-xs text-zinc-400">Current Run (Version B)</span>
+            <select id="diff-select-b" class="mt-1 w-full bg-zinc-900 text-zinc-200 text-xs p-2 rounded-lg border border-white/10"></select>
+          </div>
+          <div class="flex items-end">
+            <button onclick="calculateRegressionDiff()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition shadow-lg shadow-blue-600/30">
+              Compare Versions
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div class="bg-emerald-950/40 border border-emerald-600/40 p-3.5 rounded-xl">
+            <div class="text-xs text-emerald-400 font-bold">✓ Fixed Issues</div>
+            <div id="diff-fixed-count" class="text-2xl font-black text-emerald-300 mt-1 font-mono">0</div>
+          </div>
+          <div class="bg-amber-950/40 border border-amber-600/40 p-3.5 rounded-xl">
+            <div class="text-xs text-amber-400 font-bold">⚠ Still Present</div>
+            <div id="diff-still-count" class="text-2xl font-black text-amber-300 mt-1 font-mono">0</div>
+          </div>
+          <div class="bg-rose-950/40 border border-rose-600/40 p-3.5 rounded-xl">
+            <div class="text-xs text-rose-400 font-bold">✕ Newly Introduced</div>
+            <div id="diff-new-count" class="text-2xl font-black text-rose-300 mt-1 font-mono">0</div>
+          </div>
+        </div>
+
+        <!-- Split-Screen Slider Comparison -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">Matched Step Visual Slider</h4>
+          <div class="split-container border border-white/10 shadow-2xl">
+            <img id="diff-img-before" class="split-img-before" src="" alt="Run A step" />
+            <div id="diff-slider-box" class="split-img-after">
+              <img id="diff-img-after" style="width: 100%; height: 100%; object-fit: contain;" src="" alt="Run B step" />
+            </div>
+            <input type="range" min="0" max="100" value="50" oninput="updateDiffSlider(this.value)" 
+                   class="absolute bottom-3 left-1/2 -translate-x-1/2 w-64 accent-blue-500 cursor-ew-resize z-20" />
+          </div>
+          <div class="flex justify-between text-[11px] text-zinc-400 mt-1 px-1">
+            <span>◀ Version A (Baseline)</span>
+            <span>Version B (After Fix) ▶</span>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">Issue Delta Details</h4>
+          <table class="w-full text-left border-collapse text-xs font-mono">
+            <thead>
+              <tr class="border-b border-white/10 text-zinc-400">
+                <th class="py-2">Status</th>
+                <th class="py-2">Rule ID</th>
+                <th class="py-2 font-sans font-semibold">Title</th>
+                <th class="py-2">Severity</th>
+              </tr>
+            </thead>
+            <tbody id="diff-table-body">
+              <tr><td colspan="4" class="py-4 text-center text-zinc-500">Run a comparison to view issue deltas.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  <!-- AI SETTINGS & MODEL CONFIGURATION MODAL -->
+  <div id="ai-settings-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-6 z-50 hidden backdrop-blur-md">
+    <div class="glass-panel rounded-2xl w-full max-w-xl flex flex-col shadow-2xl border border-white/15 overflow-hidden">
+      
+      <!-- Modal Header -->
+      <div class="p-4 border-b border-white/10 flex items-center justify-between">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-sm text-indigo-300">
+            🧠
+          </div>
+          <div>
+            <div class="text-sm font-bold text-white">AI Intelligence & Model Settings</div>
+            <div class="text-[11px] text-zinc-400">Choose your VLM reasoning provider or use the built-in zero-key engine</div>
+          </div>
+        </div>
+        <button onclick="closeAiSettingsModal()" class="text-zinc-400 hover:text-white font-bold text-lg">✕</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-5 space-y-4 text-xs">
+        
+        <!-- Engine Selection -->
+        <div>
+          <label class="block text-zinc-300 font-semibold mb-1.5">Intelligence Engine / Provider</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center space-x-2.5 p-2.5 rounded-xl border border-white/10 bg-black/30 hover:border-indigo-500/50 cursor-pointer transition">
+              <input type="radio" name="ai-provider" value="heuristic" onchange="onProviderChanged('heuristic')" class="accent-indigo-500" checked />
+              <div>
+                <div class="font-bold text-zinc-200">Neural-Heuristic</div>
+                <div class="text-[10px] text-zinc-400">Built-in, Zero-Key, Fast</div>
+              </div>
+            </label>
+
+            <label class="flex items-center space-x-2.5 p-2.5 rounded-xl border border-white/10 bg-black/30 hover:border-indigo-500/50 cursor-pointer transition">
+              <input type="radio" name="ai-provider" value="gemini" onchange="onProviderChanged('gemini')" class="accent-indigo-500" />
+              <div>
+                <div class="font-bold text-zinc-200">Google Gemini</div>
+                <div class="text-[10px] text-zinc-400">2.5 Flash / 1.5 Flash Vision</div>
+              </div>
+            </label>
+
+            <label class="flex items-center space-x-2.5 p-2.5 rounded-xl border border-white/10 bg-black/30 hover:border-indigo-500/50 cursor-pointer transition">
+              <input type="radio" name="ai-provider" value="groq" onchange="onProviderChanged('groq')" class="accent-indigo-500" />
+              <div>
+                <div class="font-bold text-zinc-200">Groq Cloud</div>
+                <div class="text-[10px] text-zinc-400">Llama 3.3 70B / 11B Vision</div>
+              </div>
+            </label>
+
+            <label class="flex items-center space-x-2.5 p-2.5 rounded-xl border border-white/10 bg-black/30 hover:border-indigo-500/50 cursor-pointer transition">
+              <input type="radio" name="ai-provider" value="openai" onchange="onProviderChanged('openai')" class="accent-indigo-500" />
+              <div>
+                <div class="font-bold text-zinc-200">OpenAI / OpenRouter</div>
+                <div class="text-[10px] text-zinc-400">GPT-4o, Custom Endpoints</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- API Key Input Field -->
+        <div id="ai-key-section" class="hidden space-y-1.5">
+          <label id="ai-key-label" class="block text-zinc-300 font-semibold">API Key</label>
+          <div class="relative">
+            <input id="input-api-key" type="password" placeholder="Paste your API key here..."
+                   class="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2 text-xs font-mono text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500" />
+            <button type="button" onclick="toggleApiKeyVisibility()" class="absolute right-3 top-2 text-zinc-400 hover:text-zinc-200 text-xs">👁</button>
+          </div>
+          <div id="ai-key-hint" class="text-[10px] text-zinc-500">Your key will be securely stored locally in .env.</div>
+        </div>
+
+        <!-- Optional Model Name & Base URL -->
+        <div id="ai-advanced-section" class="hidden grid grid-cols-2 gap-3 pt-1">
+          <div>
+            <label class="block text-zinc-400 font-medium mb-1">Model Name (Optional)</label>
+            <input id="input-model-name" type="text" placeholder="e.g. gemini-2.5-flash" 
+                   class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-mono text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-zinc-400 font-medium mb-1">Base URL (OpenAI / Custom)</label>
+            <input id="input-base-url" type="text" placeholder="https://api.openai.com/v1" 
+                   class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-mono text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500" />
+          </div>
+        </div>
+
+        <!-- Test Connection Response Banner -->
+        <div id="ai-test-result" class="hidden p-2.5 rounded-xl text-xs font-mono"></div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 border-t border-white/10 flex items-center justify-between bg-black/20">
+        <button onclick="testAiConnection()" class="px-3.5 py-1.5 rounded-xl border border-white/10 hover:bg-white/5 text-zinc-300 font-semibold text-xs flex items-center space-x-1.5 transition">
+          <span id="test-btn-icon">⚡</span>
+          <span id="test-btn-text">Test Connection</span>
+        </button>
+        <div class="flex space-x-2">
+          <button onclick="closeAiSettingsModal()" class="px-4 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs transition">Cancel</button>
+          <button onclick="saveAiSettings()" class="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition">Save & Apply</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

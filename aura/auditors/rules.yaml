@@ -1,0 +1,48 @@
+# AURA Auditor Rules & Thresholds Configuration
+# All numeric thresholds live here. Nothing numeric is hardcoded in code.
+
+friction:
+  touch_target_min_width: 44       # px (WCAG 2.5.5 / Android 48dp guideline: min 44px)
+  touch_target_min_height: 44      # px
+  touch_target_spacing_min: 8      # px between adjacent interactable centers/edges
+  layout_shift_threshold: 0.05     # cumulative layout shift or pixel-diff ratio outside target
+  visual_clutter_max_elements: 35  # interactable count per viewport before flagging clutter
+  visual_clutter_text_density: 0.45# proportion of viewport covered by dense text
+  color_variety_max: 12            # distinct dominant colors indicating visual noise
+  max_nav_loop_repetitions: 2      # times a state signature can be revisited before flagging loop
+  dead_end_action_limit: 3         # consecutive actions with zero state change & no progress
+  slow_response_threshold_ms: 1500 # latency from action to state change
+  excess_effort_ratio: 1.6         # steps taken / shortest path ratio
+
+a11y:
+  wcag_level: "AA"
+  axe_tags: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"]
+  focus_walk_max_tabs: 25          # maximum Tab key presses for focus walk
+  contrast_normal_min: 4.5         # standard body text
+  contrast_large_min: 3.0          # large text (>18pt or >14pt bold)
+  invisible_focus_ring_threshold: 1.2 # contrast or outline diff between focused and unfocused
+
+personas:
+  dyslexia:
+    max_chars_per_line: 80
+    min_chars_per_line: 45
+    min_font_size_px: 14
+    min_line_height_ratio: 1.4
+    min_flesch_reading_ease: 60.0  # textstat score (<60 is difficult, <30 is very difficult)
+    max_words_per_block: 90
+    max_form_fields_per_screen: 6
+  motor:
+    touch_target_min_px: 48        # stricter hit-target for motor impaired users
+    touch_target_spacing_min_px: 12
+    max_drag_actions: 0            # flag complex gestures
+    max_travel_distance_px: 500    # distance between consecutive taps
+  color_blindness:
+    contrast_loss_alert_ratio: 0.6 # flag if simulated contrast drops below 60% of original
+    detect_color_only_signals: true
+
+agent:
+  confidence_floor: 0.60           # if confidence < 0.60, try explore before committing
+  max_steps_per_episode: 15        # prevent runaway executions
+  stuck_consecutive_threshold: 3   # 3 low-confidence or dead steps -> stuck / HITL
+  screenshot_width: 1024           # scale screenshot width for VLM efficiency & low latency
+  screenshot_quality: 80           # JPEG compression quality

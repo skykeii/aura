@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AuraStore v1 - The Flawed Boutique</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8f9fa; color: #333; }
+    
+    header { background: #ffffff; border-bottom: 1px solid #e5e7eb; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-size: 20px; font-weight: bold; color: #111; text-decoration: none; }
+    
+    /* Low contrast text bug: #a0aec0 on white is ~2.3:1 */
+    .nav-links a { color: #a0aec0; margin: 0 12px; text-decoration: none; font-size: 14px; }
+    
+    /* Unlabelled icon button bug: no text, no aria-label */
+    .icon-btn { width: 32px; height: 32px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; }
+    
+    .container { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+    
+    /* Heading level skip bug: h1 directly to h4 */
+    h1 { font-size: 26px; font-weight: 700; margin-bottom: 8px; color: #1a202c; }
+    h4 { font-size: 14px; font-weight: 400; color: #a0aec0; margin-bottom: 24px; }
+    
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+    .product-card { background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; padding: 16px; position: relative; }
+    .product-img { width: 100%; height: 160px; background: #cbd5e1; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 36px; margin-bottom: 12px; }
+    .product-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    
+    /* Low contrast price */
+    .product-price { font-size: 15px; color: #94a3b8; margin-bottom: 12px; }
+    
+    /* Tiny touch-target bug: 24px x 24px button */
+    .btn-add-tiny { width: 26px; height: 26px; font-size: 11px; background: #3b82f6; color: #fff; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    
+    .cart-bar { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-top: 30px; display: flex; justify-content: space-between; align-items: center; }
+    
+    /* Small touch target checkout: 30px height */
+    .btn-checkout { height: 32px; padding: 0 14px; background: #10b981; color: #fff; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+    
+    /* Redundant loop container */
+    .deal-loop-box { background: #eff6ff; border: 1px dashed #3b82f6; padding: 12px; border-radius: 6px; margin: 18px 0; display: flex; align-items: center; justify-content: space-between; }
+    .loop-btn { background: #2563eb; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+
+    /* Wall of text bug: low reading ease, justified, tight line-height, tiny font */
+    .terms-wall { font-size: 10px; line-height: 1.0; text-align: justify; color: #718096; margin-top: 30px; padding: 14px; background: #edf2f7; border-radius: 6px; }
+
+    /* Occluding modal bug: intercepts clicks on bottom right controls */
+    .occluding-modal {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 290px;
+      background: #1e293b;
+      color: #fff;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      z-index: 9999;
+      border: 1px solid #334155;
+    }
+    .modal-title { font-size: 14px; font-weight: bold; margin-bottom: 6px; color: #f8fafc; }
+    .modal-body { font-size: 12px; color: #94a3b8; margin-bottom: 12px; }
+    .modal-dismiss { background: #475569; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+
+    /* Focus order disorder with tabindex */
+    .jump-focus-1 { tab-index: 5; }
+    .jump-focus-2 { tab-index: 1; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="#" class="logo">AuraStore v1</a>
+    <nav class="nav-links">
+      <a href="#featured">Featured</a>
+      <a href="#deals" id="nav-deals-btn" onclick="openDealsPage()">Deals & Offers</a>
+      <a href="#support">Support</a>
+    </nav>
+    <div style="display:flex; gap:8px;">
+      <!-- Bug: unlabelled icon buttons -->
+      <button class="icon-btn" id="btn-search-icon" onclick="triggerSearch()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      </button>
+      <button class="icon-btn" id="btn-cart-icon" onclick="viewCart()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="container">
+    <h1>All Winter Collections</h1>
+    <h4>Limited season catalog with premium apparel</h4>
+
+    <!-- Redundant Loop section: Deals -> Special Offers -> Deals -->
+    <div class="deal-loop-box" id="loop-container">
+      <span id="loop-text" style="font-size:13px; color:#1e40af;">Special Campaign: 20% off with code WINTER20</span>
+      <button class="loop-btn" id="loop-action-btn" onclick="toggleLoopState()">View Special Offers</button>
+    </div>
+
+    <div class="product-grid">
+      <!-- Product 1 -->
+      <div class="product-card" id="prod-1">
+        <div class="product-img">🧥</div>
+        <div class="product-title">Alpine Thermal Jacket</div>
+        <div class="product-price">$89.99</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; color:#a0aec0;">In stock (4)</span>
+          <!-- Bug: 26x26 tiny button -->
+          <button class="btn-add-tiny" id="btn-add-jacket" tabindex="5" onclick="addToCart('Alpine Thermal Jacket', 89.99)" title="Add">+</button>
+        </div>
+      </div>
+
+      <!-- Product 2 -->
+      <div class="product-card" id="prod-2">
+        <div class="product-img">🧤</div>
+        <div class="product-title">Merino Wool Gloves</div>
+        <div class="product-price">$24.50</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; color:#a0aec0;">In stock (12)</span>
+          <button class="btn-add-tiny" id="btn-add-gloves" tabindex="1" onclick="addToCart('Merino Wool Gloves', 24.50)" title="Add">+</button>
+        </div>
+      </div>
+
+      <!-- Product 3 -->
+      <div class="product-card" id="prod-3">
+        <div class="product-img">🧣</div>
+        <div class="product-title">Cashmere Knit Scarf</div>
+        <div class="product-price">$45.00</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; color:#a0aec0;">In stock (7)</span>
+          <button class="btn-add-tiny" id="btn-add-scarf" onclick="addToCart('Cashmere Knit Scarf', 45.00)" title="Add">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cart-bar" id="cart-section">
+      <div>
+        <div style="font-weight:600; font-size:15px;" id="cart-summary">Shopping Cart: 0 items ($0.00)</div>
+        <div style="font-size:12px; color:#94a3b8;" id="cart-items-label">Select items to continue</div>
+      </div>
+      <!-- Bug: checkout button occluded by modal if modal is shown or tiny height -->
+      <button class="btn-checkout" id="btn-checkout" onclick="proceedToCheckout()">Checkout</button>
+    </div>
+
+    <div id="checkout-result" style="display:none; margin-top:20px; padding:16px; background:#dcfce7; border:1px solid #86efac; border-radius:6px; color:#166534; font-weight:600;">
+      Order Confirmed! Your order #AURA-7712 has been placed successfully.
+    </div>
+
+    <!-- Wall of text legal policy: textstat Flesch score will fail (<30) -->
+    <div class="terms-wall">
+      PURCHASE TERMS AND COGNITIVE LOAD VERIFICATION DOCUMENTATION: By virtue of interacting with, browsing, initiating transactions, utilizing checkout conduits, or manipulating state parameters within the proprietary digital ecosystem of this merchant portal, you irrevocably, unconditionally, and comprehensively acquiesce to the totality of the indemnification stipulations, cross-jurisdictional liability limitations, unilateral arbitration covenants, dispute adjudication mandates, liquidated damage thresholds, and data collection modalities enunciated in the comprehensive corporate operational charter herein and incorporated without limitation or reservation.
+    </div>
+  </div>
+
+  <!-- Occluding modal bug: intercepts clicks on bottom right corner -->
+  <div class="occluding-modal" id="promo-modal">
+    <div class="modal-title">🎉 Exclusive 15% VIP Promo</div>
+    <div class="modal-body">Claim your promotional token now before checking out to receive free standard priority courier dispatch.</div>
+    <div style="display:flex; justify-content:space-between;">
+      <button class="modal-dismiss" id="modal-close-btn" onclick="dismissModal()">Dismiss</button>
+      <button class="modal-dismiss" style="background:#3b82f6;" id="modal-claim-btn" onclick="claimPromo()">Claim Now</button>
+    </div>
+  </div>
+
+  <script>
+    let cart = [];
+    let loopStep = 0;
+
+    function addToCart(name, price) {
+      cart.push({name, price});
+      updateCartDisplay();
+    }
+
+    function updateCartDisplay() {
+      const total = cart.reduce((sum, item) => sum + item.price, 0);
+      document.getElementById('cart-summary').innerText = `Shopping Cart: ${cart.length} item(s) ($${total.toFixed(2)})`;
+      document.getElementById('cart-items-label').innerText = cart.map(i => i.name).join(', ');
+    }
+
+    function proceedToCheckout() {
+      if (cart.length === 0) {
+        alert('Cart is empty. Add an item first.');
+        return;
+      }
+      document.getElementById('checkout-result').style.display = 'block';
+      document.getElementById('checkout-result').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function dismissModal() {
+      document.getElementById('promo-modal').style.display = 'none';
+    }
+
+    function claimPromo() {
+      dismissModal();
+      alert('Promo code applied!');
+    }
+
+    function toggleLoopState() {
+      loopStep = (loopStep + 1) % 2;
+      const text = document.getElementById('loop-text');
+      const btn = document.getElementById('loop-action-btn');
+      if (loopStep === 1) {
+        text.innerText = 'Hot Deals: See flash discounts in Alpine collection!';
+        btn.innerText = 'Back to Special Offers';
+      } else {
+        text.innerText = 'Special Campaign: 20% off with code WINTER20';
+        btn.innerText = 'View Special Offers';
+      }
+    }
+
+    function openDealsPage() {
+      toggleLoopState();
+    }
+
+    function triggerSearch() {
+      alert('Search modal');
+    }
+
+    function viewCart() {
+      document.getElementById('cart-section').scrollIntoView({ behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
